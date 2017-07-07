@@ -22,6 +22,7 @@ import java.util.Date;
 import javax.naming.NamingException;
 import javax.sql.DataSource;
 
+import org.apache.catalina.Container;
 import org.apache.catalina.Context;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.tomcat.util.descriptor.web.ContextResource;
@@ -62,27 +63,13 @@ public class SampleTomcatJndiApplication {
         log.info("Running scheduled task at {}", dateFormat.format(new Date()));
 
         try {
-        	/**
-        	 * throws the following error:
-        	 * 
-        	 * javax.naming.NameNotFoundException: Name [comp/env/jdbc/myDataSource] is not bound in this Context. Unable to find [comp].
-        	 * 
-        	 */
-			log.info(sampleUtil.getDataSourcefromJNDI());
-        	
-        	/**
-        	 * throws the following error:
-        	 * 
-        	 * org.springframework.jndi.JndiLookupFailureException: JndiObjectTargetSource failed to obtain new target object; nested exception is javax.naming.NameNotFoundException: Name [comp/env/jdbc/myDataSource] is not bound in this Context. Unable to find [comp].
-        	 * 
-        	 */
-			// log.info(sampleUtil.getDataSourcefromFactoryBean());
-
+			sampleUtil.getDataSourcefromJNDI();
+			sampleUtil.getDataSourcefromFactoryBean();
         } catch (NamingException e) {
 			e.printStackTrace();
 		}
     }
-	
+
 	@Bean
 	public TomcatEmbeddedServletContainerFactory tomcatFactory() {
 		return new TomcatEmbeddedServletContainerFactory() {
@@ -91,7 +78,29 @@ public class SampleTomcatJndiApplication {
 			protected TomcatEmbeddedServletContainer getTomcatEmbeddedServletContainer(
 					Tomcat tomcat) {
 				tomcat.enableNaming();
-				return super.getTomcatEmbeddedServletContainer(tomcat);
+				
+				// results in a JNDI lookup failure when the lookup is performed by the Scheduled task
+				// return super.getTomcatEmbeddedServletContainer(tomcat);
+				
+				/**
+				 * resolves the JNDI lookup issue noted above.
+				 * 
+				 * see to the following link for more info:
+				 *  https://stackoverflow.com/a/27825078/1384297
+				 */
+	            TomcatEmbeddedServletContainer container = 
+	                    super.getTomcatEmbeddedServletContainer(tomcat);
+	            
+	            for (Container child: container.getTomcat().getHost().findChildren()) {
+	                if (child instanceof Context) {
+	                    ClassLoader contextClassLoader = 
+	                            ((Context)child).getLoader().getClassLoader();
+	                    Thread.currentThread().setContextClassLoader(contextClassLoader);
+	                    break;
+	                }
+	            }
+	            
+	            return container;
 			}
 
 			@Override
