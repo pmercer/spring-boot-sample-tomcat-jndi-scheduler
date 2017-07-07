@@ -5,5 +5,5 @@ JNDI with embedded Tomcat with Scheduling enabled ... which results in JNDI look
 
 ## Credit
 
-This application is simply an extension to the following working example:
+This application simply attempts to run a Scheduled task that performs a JNDI lookup on top of the following working example:
 [spring-boot-sample-tomcat-jndi](https://github.com/wilkinsona/spring-boot-sample-tomcat-jndi)
